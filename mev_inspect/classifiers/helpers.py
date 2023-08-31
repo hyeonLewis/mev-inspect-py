@@ -96,13 +96,16 @@ def create_swap_from_pool_transfers(
         transfer_in = transfers_to_pool[-1]
     else:
         if len(transfers_from_pool_to_recipient) != 1:
+            amount = trace.inputs.get("amountB")
+            if (amount == None):
+                return None
             transfer_out = Transfer(
                 block_number=trace.block_number,
                 transaction_hash=trace.transaction_hash,
                 trace_address=trace.trace_address,
                 from_address=pool_address,
                 to_address=recipient_address,
-                amount=trace.inputs["amountB"],
+                amount=amount,
                 token_address=KLAY_TOKEN_ADDRESS,
             )
             transfer_in = transfers_to_pool[0]
