@@ -102,7 +102,7 @@ def create_swap_from_pool_transfers(
                 trace_address=trace.trace_address,
                 from_address=pool_address,
                 to_address=recipient_address,
-                amount=trace.value,
+                amount=trace.inputs["amountB"],
                 token_address=KLAY_TOKEN_ADDRESS,
             )
             transfer_in = transfers_to_pool[0]

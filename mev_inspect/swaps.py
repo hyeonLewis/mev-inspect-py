@@ -38,12 +38,13 @@ def _get_swaps_for_transaction(traces: List[ClassifiedTrace]) -> List[Swap]:
                 prior_transfers.append(transfer)
         
         elif trace.classification == Classification.swap:
+
             child_transfers = get_child_transfers(
                 trace.transaction_hash,
                 trace.trace_address,
                 traces,
             )
-            
+
             swap = _parse_swap(
                 trace,
                 remove_child_transfers_of_transfers(prior_transfers),
