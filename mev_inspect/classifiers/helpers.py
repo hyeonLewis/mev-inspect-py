@@ -105,7 +105,7 @@ def create_swap_from_pool_transfers(
                 amount=trace.value,
                 token_address=KLAY_TOKEN_ADDRESS,
             )
-            transfer_in = transfers_to_pool[-1]
+            transfer_in = transfers_to_pool[0]
         else:
             transfer_out = transfers_from_pool_to_recipient[0]
             transfer_in = transfers_to_pool[0]
