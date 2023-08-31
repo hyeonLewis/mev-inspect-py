@@ -51,6 +51,7 @@ class Protocol(Enum):
     cryptopunks = "cryptopunks"
     bancor = "bancor"
     opensea = "opensea"
+    klayswap = "klayswap"
 
 
 class ClassifiedTrace(Trace):
