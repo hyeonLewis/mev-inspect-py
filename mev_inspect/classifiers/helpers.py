@@ -1,7 +1,7 @@
 from typing import List, Optional, Sequence
 
 from mev_inspect.schemas.nft_trades import NftTrade
-from mev_inspect.schemas.prices import ETH_TOKEN_ADDRESS
+from mev_inspect.schemas.prices import KLAY_TOKEN_ADDRESS, ETH_TOKEN_ADDRESS
 from mev_inspect.schemas.swaps import Swap
 from mev_inspect.schemas.traces import ClassifiedTrace, DecodedCallTrace
 from mev_inspect.schemas.transfers import Transfer
@@ -93,18 +93,22 @@ def create_swap_from_pool_transfers(
         if len(transfers_from_pool_to_recipient) != 1:
             return None
         transfer_out = transfers_from_pool_to_recipient[0]
+        transfer_in = transfers_to_pool[-1]
     else:
-        transfer_out = Transfer(
-            block_number=trace.block_number,
-            transaction_hash=trace.transaction_hash,
-            trace_address=trace.trace_address,
-            from_address=pool_address,
-            to_address=recipient_address,
-            amount=trace.value,
-            token_address=ETH_TOKEN_ADDRESS,
-        )
-        
-    transfer_in = transfers_to_pool[-1]
+        if len(transfers_from_pool_to_recipient) != 1:
+            transfer_out = Transfer(
+                block_number=trace.block_number,
+                transaction_hash=trace.transaction_hash,
+                trace_address=trace.trace_address,
+                from_address=pool_address,
+                to_address=recipient_address,
+                amount=trace.value,
+                token_address=KLAY_TOKEN_ADDRESS,
+            )
+            transfer_in = transfers_to_pool[-1]
+        else:
+            transfer_out = transfers_from_pool_to_recipient[0]
+            transfer_in = transfers_to_pool[0]
 
     return Swap(
         abi_name=trace.abi_name,
@@ -170,7 +174,7 @@ def _build_eth_transfer(trace: ClassifiedTrace) -> Transfer:
         amount=trace.value,
         to_address=trace.to_address,
         from_address=trace.from_address,
-        token_address=ETH_TOKEN_ADDRESS,
+        token_address=KLAY_TOKEN_ADDRESS,
     )
 
 

@@ -2,7 +2,7 @@ from typing import Dict, List, Optional, Sequence
 
 from mev_inspect.classifiers.specs import get_classifier
 from mev_inspect.schemas.classifiers import TransferClassifier
-from mev_inspect.schemas.prices import ETH_TOKEN_ADDRESS
+from mev_inspect.schemas.prices import KLAY_TOKEN_ADDRESS
 from mev_inspect.schemas.traces import ClassifiedTrace, DecodedCallTrace
 from mev_inspect.schemas.transfers import Transfer
 from mev_inspect.traces import get_child_traces, is_child_trace_address
@@ -25,7 +25,7 @@ def get_eth_transfers(traces: List[ClassifiedTrace]) -> List[Transfer]:
     return [
         transfer
         for transfer in transfers
-        if transfer.token_address == ETH_TOKEN_ADDRESS
+        if transfer.token_address == KLAY_TOKEN_ADDRESS
     ]
 
 
@@ -56,7 +56,7 @@ def build_eth_transfer(trace: ClassifiedTrace) -> Transfer:
         amount=trace.value,
         to_address=trace.to_address,
         from_address=trace.from_address,
-        token_address=ETH_TOKEN_ADDRESS,
+        token_address=KLAY_TOKEN_ADDRESS,
     )
 
 
