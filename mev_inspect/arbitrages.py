@@ -41,22 +41,35 @@ def _get_arbitrages_from_swaps(swaps: List[Swap]) -> List[Arbitrage]:
     A->B->C->A / B->C->A->B / C->A->B->C. Thus when multiple valid routes are found we filter to the set that
     happen in valid order.
     """
-
+    
     all_arbitrages = []
-
+    
     start_ends = _get_all_start_end_swaps(swaps)
     if len(start_ends) == 0:
         return []
 
     used_swaps: List[Swap] = []
+    
+    start_ends_non_ksp = [
+        (start, ends)
+        for (start, ends) in start_ends
+        if start.abi_name != "KlayswapRouter"
+        and all([end.abi_name != "KlayswapRouter" for end in ends])
+    ]
 
-    for (start, ends) in start_ends:
+    # filter swap from swaps that start_ends all abi_name is "KlayswapRouter"
+    ksp_swaps = [swap for swap in swaps if swap.abi_name == "KlayswapRouter"]
+    
+    all_arbitrages += _get_arb_for_ksp(ksp_swaps)
+
+    for (start, ends) in start_ends_non_ksp:
+
         if start in used_swaps:
             continue
 
         unused_ends = [end for end in ends if end not in used_swaps]
         route = _get_shortest_route(start, unused_ends, swaps)
-
+        
         if route is not None:
             start_amount = route[0].token_in_amount
             end_amount = route[-1].token_out_amount
@@ -90,6 +103,49 @@ def _get_arbitrages_from_swaps(swaps: List[Swap]) -> List[Arbitrage]:
             if (arb.swaps[0].trace_address < arb.swaps[-1].trace_address)
         ]
 
+def _get_arb_for_ksp(swaps: List[Swap]) -> List[Arbitrage]:
+    arbitrages: List[Arbitrage] = []
+    swap_in_same_tx: List[List[Swap]] = [[]]
+    key: str = ""
+    
+    for swap in swaps:
+        if (swap.transaction_hash == key):
+            swap_in_same_tx[-1].append(swap)
+        else:
+            key = swap.transaction_hash
+            swap_in_same_tx.append([swap])
+        
+    for swap_list in swap_in_same_tx:
+        if len(swap_list) > 1:
+            start_token = swap_list[0].token_in_address
+            end_token = swap_list[-1].token_out_address
+            if start_token != end_token:
+                continue
+            start_amount = swap_list[0].token_in_amount
+            end_amount = swap_list[-1].token_out_amount
+            profit_amount = end_amount - start_amount
+            if profit_amount <= 0:
+                continue
+            error = None
+            for swap in swap_list:
+                if swap.error is not None:
+                    error = swap.error
+
+            arb = Arbitrage(
+                swaps=swap_list,
+                block_number=swap_list[0].block_number,
+                transaction_hash=swap_list[0].transaction_hash,
+                account_address=swap_list[0].from_address,
+                profit_token_address=swap_list[0].token_in_address,
+                start_amount=start_amount,
+                end_amount=end_amount,
+                profit_amount=profit_amount,
+                error=error,
+            )
+
+            arbitrages.append(arb)
+        
+    return arbitrages
 
 def _get_shortest_route(
     start_swap: Swap,
@@ -160,6 +216,7 @@ def _get_all_start_end_swaps(swaps: List[Swap]) -> List[Tuple[Swap, List[Swap]]]
         remaining_swaps = swaps[:index] + swaps[index + 1 :]
 
         for potential_end_swap in remaining_swaps:
+
             if (
                 potential_start_swap.token_in_address
                 == potential_end_swap.token_out_address

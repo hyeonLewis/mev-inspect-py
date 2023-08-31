@@ -39,6 +39,7 @@ class SwapClassifier(Classifier):
         trace: DecodedCallTrace,
         prior_transfers: List[Transfer],
         child_transfers: List[Transfer],
+        length = None,
     ) -> Optional[Swap]:
         raise NotImplementedError()
 

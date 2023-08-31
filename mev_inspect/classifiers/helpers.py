@@ -76,9 +76,10 @@ def create_swap_from_pool_transfers(
     if trace.value is not None and trace.value > 0:
         transfers_to_pool = [_build_eth_transfer(trace)]
 
+    # affects to 2, 3
     if len(transfers_to_pool) == 0:
         transfers_to_pool = _filter_transfers(prior_transfers, to_address=pool_address)
-
+    # affecs to first
     if len(transfers_to_pool) == 0:
         transfers_to_pool = _filter_transfers(child_transfers, to_address=pool_address)
 
@@ -89,29 +90,64 @@ def create_swap_from_pool_transfers(
         child_transfers, to_address=recipient_address, from_address=pool_address
     )
 
-    if trace.protocol != Protocol.klayswap:
-        if len(transfers_from_pool_to_recipient) != 1:
-            return None
-        transfer_out = transfers_from_pool_to_recipient[0]
+    if len(transfers_from_pool_to_recipient) != 1:
+        return None
+        
+    transfer_out = transfers_from_pool_to_recipient[0]
+    transfer_in = transfers_to_pool[-1]
+
+    return Swap(
+        abi_name=trace.abi_name,
+        transaction_hash=trace.transaction_hash,
+        transaction_position=trace.transaction_position,
+        block_number=trace.block_number,
+        trace_address=trace.trace_address,
+        contract_address=pool_address,
+        protocol=trace.protocol,
+        from_address=transfer_in.from_address,
+        to_address=transfer_out.to_address,
+        token_in_address=transfer_in.token_address,
+        token_in_amount=transfer_in.amount,
+        token_out_address=transfer_out.token_address,
+        token_out_amount=transfer_out.amount,
+        error=trace.error,
+    )
+    
+def create_swap_from_pool_transfers_for_ksp(
+    trace: DecodedCallTrace,
+    recipient_address: str,
+    prior_transfers: List[Transfer],
+    child_transfers: List[Transfer],
+    length: int
+) -> Optional[Swap]:
+    pool_address = trace.to_address
+
+    transfers_to_pool = []
+
+    if trace.value is not None and trace.value > 0:
+        transfers_to_pool = [_build_eth_transfer(trace)]
+
+    if len(transfers_to_pool) == 0:
+        transfers_to_pool = _filter_transfers(prior_transfers, to_address=pool_address)
+
+    if len(transfers_to_pool) == 0:
+        transfers_to_pool = _filter_transfers(child_transfers, to_address=pool_address)
+
+    if len(transfers_to_pool) == 0:
+        return None
+
+    transfers_from_pool_to_recipient = _filter_transfers(
+        child_transfers, to_address=recipient_address, from_address=pool_address
+    )
+
+    if len(transfers_from_pool_to_recipient) != 1:
+        return None
+        
+    transfer_out = transfers_from_pool_to_recipient[0]
+    if len(transfers_to_pool) - 1 < length:
         transfer_in = transfers_to_pool[-1]
     else:
-        if len(transfers_from_pool_to_recipient) != 1:
-            amount = trace.inputs.get("amountB")
-            if (amount == None):
-                return None
-            transfer_out = Transfer(
-                block_number=trace.block_number,
-                transaction_hash=trace.transaction_hash,
-                trace_address=trace.trace_address,
-                from_address=pool_address,
-                to_address=recipient_address,
-                amount=amount,
-                token_address=KLAY_TOKEN_ADDRESS,
-            )
-            transfer_in = transfers_to_pool[0]
-        else:
-            transfer_out = transfers_from_pool_to_recipient[0]
-            transfer_in = transfers_to_pool[0]
+        transfer_in = transfers_to_pool[length]
 
     return Swap(
         abi_name=trace.abi_name,
@@ -187,13 +223,19 @@ def _filter_transfers(
     from_address: Optional[str] = None,
 ) -> List[Transfer]:
     filtered_transfers = []
-
+    used_token = []
+ 
     for transfer in transfers:
+        used_token.append(transfer.token_address)
+        
         if to_address is not None and transfer.to_address != to_address:
             continue
 
         if from_address is not None and transfer.from_address != from_address:
             continue
+        
+        if used_token.count(transfer.token_address) > 0:
+            filtered_transfers = [x for x in filtered_transfers if x.token_address != transfer.token_address]
 
         filtered_transfers.append(transfer)
 
