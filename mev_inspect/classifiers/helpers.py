@@ -72,6 +72,9 @@ def create_swap_from_pool_transfers(
     pool_address = trace.to_address
 
     transfers_to_pool = []
+    
+    if trace.abi_name=='KlayswapRouter':
+        return _get_ksp_swap(trace, prior_transfers, child_transfers)
 
     if trace.value is not None and trace.value > 0:
         transfers_to_pool = [_build_eth_transfer(trace)]
@@ -89,29 +92,10 @@ def create_swap_from_pool_transfers(
         child_transfers, to_address=recipient_address, from_address=pool_address
     )
 
-    if trace.protocol != Protocol.klayswap:
-        if len(transfers_from_pool_to_recipient) != 1:
-            return None
-        transfer_out = transfers_from_pool_to_recipient[0]
-        transfer_in = transfers_to_pool[-1]
-    else:
-        if len(transfers_from_pool_to_recipient) != 1:
-            amount = trace.inputs.get("amountB")
-            if (amount == None):
-                return None
-            transfer_out = Transfer(
-                block_number=trace.block_number,
-                transaction_hash=trace.transaction_hash,
-                trace_address=trace.trace_address,
-                from_address=pool_address,
-                to_address=recipient_address,
-                amount=amount,
-                token_address=KLAY_TOKEN_ADDRESS,
-            )
-            transfer_in = transfers_to_pool[0]
-        else:
-            transfer_out = transfers_from_pool_to_recipient[0]
-            transfer_in = transfers_to_pool[0]
+    if len(transfers_from_pool_to_recipient) != 1:
+        return None
+    transfer_out = transfers_from_pool_to_recipient[0]
+    transfer_in = transfers_to_pool[-1]
 
     return Swap(
         abi_name=trace.abi_name,
@@ -180,6 +164,65 @@ def _build_eth_transfer(trace: ClassifiedTrace) -> Transfer:
         token_address=KLAY_TOKEN_ADDRESS,
     )
 
+def _get_ksp_swap(trace: ClassifiedTrace, prior_transfers: List[Transfer], child_transfers: List[Transfer]) -> Optional[Swap]:        
+    is_klay = trace.function_name.startswith('exchangeKlay')
+    
+    from_ksp_transfers = [prior_transfer for prior_transfer in prior_transfers if prior_transfer.from_address == trace.to_address]
+    from_ksp_transfers += (child_transfer for child_transfer in child_transfers if child_transfer.from_address == trace.to_address)
+
+    if (len(from_ksp_transfers) == 0):
+        return None
+
+    from_ksp_transfers = [transfer for transfer in from_ksp_transfers if transfer.to_address == trace.from_address]
+    
+    if (len(from_ksp_transfers) == 0):
+        return None
+    
+    if is_klay:
+        if (trace.value is None) or (trace.value == 0):
+            return None
+        
+        output_token_transfers = [transfer for transfer in from_ksp_transfers if transfer.token_address == trace.inputs.get("token", None)]
+        if (len(output_token_transfers) == 0):
+            return None
+    
+        return Swap(
+            abi_name=trace.abi_name,
+            transaction_hash=trace.transaction_hash,
+            transaction_position=trace.transaction_position,
+            block_number=trace.block_number,
+            trace_address=trace.trace_address,
+            contract_address=trace.to_address,
+            protocol=trace.protocol,
+            from_address=trace.from_address,
+            to_address=trace.from_address,
+            token_in_address=KLAY_TOKEN_ADDRESS,
+            token_in_amount=trace.value,
+            token_out_address=trace.inputs.get("token", None),
+            token_out_amount=output_token_transfers[-1].amount,
+            error=trace.error,
+        )
+
+    output_token_transfers = [transfer for transfer in from_ksp_transfers if transfer.token_address == trace.inputs.get("tokenB", None)]
+    if (len(output_token_transfers) == 0):
+        return None
+        
+    return Swap(
+        abi_name=trace.abi_name,
+        transaction_hash=trace.transaction_hash,
+        transaction_position=trace.transaction_position,
+        block_number=trace.block_number,
+        trace_address=trace.trace_address,
+        contract_address=trace.to_address,
+        protocol=trace.protocol,
+        from_address=trace.from_address,
+        to_address=trace.from_address,
+        token_in_address=trace.inputs.get("tokenA", None),
+        token_in_amount=trace.inputs.get("amountA", None),
+        token_out_address=trace.inputs.get("tokenB", None),
+        token_out_amount=output_token_transfers[-1].amount,
+        error=trace.error,
+    )
 
 def _filter_transfers(
     transfers: Sequence[Transfer],
