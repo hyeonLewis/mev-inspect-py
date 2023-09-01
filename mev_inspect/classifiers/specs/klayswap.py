@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from mev_inspect.classifiers.helpers import create_swap_from_pool_transfers_for_ksp
+from mev_inspect.classifiers.helpers import create_swap_from_pool_transfers
 from mev_inspect.schemas.classifiers import ClassifierSpec, SwapClassifier
 from mev_inspect.schemas.swaps import Swap
 from mev_inspect.schemas.traces import DecodedCallTrace, Protocol
@@ -14,15 +14,13 @@ class KlayswapSwapClassifier(SwapClassifier):
         trace: DecodedCallTrace,
         prior_transfers: List[Transfer],
         child_transfers: List[Transfer],
-        length: int
     ) -> Optional[Swap]:
 
         recipient_address = trace.inputs.get("to", trace.from_address)
     
-        swap = create_swap_from_pool_transfers_for_ksp(
-            trace, recipient_address, prior_transfers, child_transfers, length
+        swap = create_swap_from_pool_transfers(
+            trace, recipient_address, prior_transfers, child_transfers
         )
-    
         return swap
 
 # KLAYSWAP_CONTRACT_SPECS = [

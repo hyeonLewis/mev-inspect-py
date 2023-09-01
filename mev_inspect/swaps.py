@@ -27,7 +27,6 @@ def _get_swaps_for_transaction(traces: List[ClassifiedTrace]) -> List[Swap]:
 
     swaps: List[Swap] = []
     prior_transfers: List[Transfer] = []
-    idx = 0
 
     for trace in ordered_traces:
         if not isinstance(trace, DecodedCallTrace):
@@ -50,14 +49,11 @@ def _get_swaps_for_transaction(traces: List[ClassifiedTrace]) -> List[Swap]:
                 trace,
                 remove_child_transfers_of_transfers(prior_transfers),
                 remove_child_transfers_of_transfers(child_transfers),
-                idx,
             )
-            
-            idx += 1
-            
+
             if swap is not None:
                 swaps.append(swap)
-        
+
     return swaps
 
 
@@ -65,13 +61,9 @@ def _parse_swap(
     trace: DecodedCallTrace,
     prior_transfers: List[Transfer],
     child_transfers: List[Transfer],
-    length: int,
 ) -> Optional[Swap]:
 
     classifier = get_classifier(trace)
     if classifier is not None and issubclass(classifier, SwapClassifier):
-        if trace.abi_name == "KlayswapRouter":
-            return classifier.parse_swap(trace, prior_transfers, child_transfers, length)
-        else:
-            return classifier.parse_swap(trace, prior_transfers, child_transfers)
+        return classifier.parse_swap(trace, prior_transfers, child_transfers)
     return None
