@@ -2,6 +2,7 @@ from itertools import groupby
 from typing import List, Optional, Tuple
 
 from mev_inspect.schemas.arbitrages import Arbitrage
+from mev_inspect.schemas.prices import KLAYTN_STABLE_TOKENS, KLAY_TOKEN_ADDRESSES
 from mev_inspect.schemas.swaps import Swap
 from mev_inspect.utils import equal_within_percent
 
@@ -41,20 +42,21 @@ def _get_arbitrages_from_swaps(swaps: List[Swap]) -> List[Arbitrage]:
     A->B->C->A / B->C->A->B / C->A->B->C. Thus when multiple valid routes are found we filter to the set that
     happen in valid order.
     """
-
-    all_arbitrages = []
+    
+    ksp_swaps = [swap for swap in swaps if swap.abi_name == 'KlayswapRouter']
+    
+    all_arbitrages, used_swaps = _get_arbitrages_from_ksp_swaps(ksp_swaps)
 
     start_ends = _get_all_start_end_swaps(swaps)
-    if len(start_ends) == 0:
+    if len(start_ends) == 0 and len(all_arbitrages) == 0:
         return []
-
-    used_swaps: List[Swap] = []
 
     for (start, ends) in start_ends:
         if start in used_swaps:
             continue
 
         unused_ends = [end for end in ends if end not in used_swaps]
+        
         route = _get_shortest_route(start, unused_ends, swaps)
 
         if route is not None:
@@ -77,7 +79,7 @@ def _get_arbitrages_from_swaps(swaps: List[Swap]) -> List[Arbitrage]:
                 profit_amount=profit_amount,
                 error=error,
             )
-
+        
             all_arbitrages.append(arb)
             used_swaps.extend(route)
 
@@ -90,6 +92,29 @@ def _get_arbitrages_from_swaps(swaps: List[Swap]) -> List[Arbitrage]:
             if (arb.swaps[0].trace_address < arb.swaps[-1].trace_address)
         ]
 
+def _get_arbitrages_from_ksp_swaps(swaps: List[Swap]):
+    arb_ksp: List[Arbitrage] = []
+    used_swaps_ksp: List[Swap] = []
+    
+    if len(swaps) == 0:
+        return arb_ksp, used_swaps_ksp
+    
+    for swap in swaps:
+        if (swap.token_in_address == swap.token_out_address and swap.from_address == swap.to_address and swap.token_in_amount < swap.token_out_amount):
+            arb_ksp.append(Arbitrage(
+                swaps=[swap],
+                block_number=swap.block_number,
+                transaction_hash=swap.transaction_hash,
+                account_address=swap.from_address,
+                profit_token_address=swap.token_in_address,
+                start_amount=swap.token_in_amount,
+                end_amount=swap.token_out_amount,
+                profit_amount= swap.token_out_amount - swap.token_in_amount,
+                error=swap.error,
+            ))
+            used_swaps_ksp.append(swap)
+
+    return arb_ksp, used_swaps_ksp  
 
 def _get_shortest_route(
     start_swap: Swap,
@@ -176,8 +201,13 @@ def _get_all_start_end_swaps(swaps: List[Swap]) -> List[Tuple[Swap, List[Swap]]]
 
 
 def _swap_outs_match_swap_ins(swap_out, swap_in) -> bool:
+    is_klay = swap_out.token_out_address in KLAY_TOKEN_ADDRESSES
+    if is_klay:
+        token_condition = swap_in.token_in_address in KLAY_TOKEN_ADDRESSES
+    else:
+        token_condition = swap_out.token_out_address == swap_in.token_in_address
     return (
-        swap_out.token_out_address == swap_in.token_in_address
+        token_condition
         and (
             swap_out.contract_address == swap_in.from_address
             or swap_out.to_address == swap_in.contract_address

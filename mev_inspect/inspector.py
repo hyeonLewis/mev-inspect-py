@@ -29,7 +29,7 @@ class MEVInspector:
         self,
         rpc: str,
         type: RPCType = RPCType.parity,
-        max_concurrency: int = 1,
+        max_concurrency: int = 10,
         request_timeout: int = 300,
     ):
         base_provider = get_base_provider(rpc, request_timeout, type)

@@ -50,10 +50,6 @@ def _get_swaps_for_transaction(traces: List[ClassifiedTrace]) -> List[Swap]:
                 remove_child_transfers_of_transfers(prior_transfers),
                 remove_child_transfers_of_transfers(child_transfers),
             )
-            
-            if trace.transaction_hash == '0x4f0b53e437215cd02386afcd84b412bf5e677ba365846f05f5eafeabb0c43ccc':
-                print(swap)
-                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
             if swap is not None:
                 swaps.append(swap)
