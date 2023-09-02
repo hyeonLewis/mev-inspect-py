@@ -94,6 +94,7 @@ async def inspect_many_blocks(
     all_transfers: List[Transfer] = []
     all_swaps: List[Swap] = []
     all_arbitrages: List[Arbitrage] = []
+    # Remove useless data for now
     # all_liquidations: List[Liquidation] = []
     # all_sandwiches: List[Sandwich] = []
 
@@ -138,7 +139,6 @@ async def inspect_many_blocks(
         logger.info(f"Block: {block_number} -- Found {len(swaps)} swaps")
 
         arbitrages = get_arbitrages(swaps)
-        logger.info("Note: The exact token amounts might be different, but profit will be calculated correctly")
         logger.info(f"Block: {block_number} -- Found {len(arbitrages)} arbitrages")
 
         # liquidations = get_liquidations(classified_traces)
