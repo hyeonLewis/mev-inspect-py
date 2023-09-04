@@ -22,7 +22,7 @@ def get_arbitrages(swaps: List[Swap]) -> List[Arbitrage]:
         all_arbitrages += _get_arbitrages_from_swaps(
             list(transaction_swaps),
         )
-    print(all_arbitrages)
+
     return all_arbitrages
 
 
