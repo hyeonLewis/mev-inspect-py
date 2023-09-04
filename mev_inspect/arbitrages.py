@@ -22,7 +22,7 @@ def get_arbitrages(swaps: List[Swap]) -> List[Arbitrage]:
         all_arbitrages += _get_arbitrages_from_swaps(
             list(transaction_swaps),
         )
-
+    print(all_arbitrages)
     return all_arbitrages
 
 
@@ -185,10 +185,14 @@ def _get_all_start_end_swaps(swaps: List[Swap]) -> List[Tuple[Swap, List[Swap]]]
         remaining_swaps = swaps[:index] + swaps[index + 1 :]
 
         for potential_end_swap in remaining_swaps:
+            is_klay = potential_start_swap.token_in_address in KLAY_TOKEN_ADDRESSES
+            if is_klay:
+                token_condition = potential_end_swap.token_out_address in KLAY_TOKEN_ADDRESSES
+            else:
+                token_condition = potential_start_swap.token_in_address == potential_end_swap.token_out_address
             if (
-                potential_start_swap.token_in_address
-                == potential_end_swap.token_out_address
-                and potential_start_swap.from_address == potential_end_swap.to_address
+                token_condition
+                # and potential_start_swap.from_address == potential_end_swap.to_address
                 and not potential_start_swap.from_address in pool_addrs
             ):
 
@@ -208,11 +212,14 @@ def _swap_outs_match_swap_ins(swap_out, swap_in) -> bool:
         token_condition = swap_out.token_out_address == swap_in.token_in_address
     return (
         token_condition
-        and (
-            swap_out.contract_address == swap_in.from_address
-            or swap_out.to_address == swap_in.contract_address
-            or swap_out.to_address == swap_in.from_address
-        )
+        # We allow the following routing path:
+        # BOT_1 -> A/B -> BOT_2 -> BOT_3 -> B/C -> BOT_4 -> C/A -> BOT_5
+        # All we need to capture is the `token flows`.
+        # and (
+        #     swap_out.contract_address == swap_in.from_address
+        #     or swap_out.to_address == swap_in.contract_address
+        #     or swap_out.to_address == swap_in.from_address
+        # )
         and equal_within_percent(
             swap_out.token_out_amount,
             swap_in.token_in_amount,
